@@ -89,12 +89,21 @@ class League(object):
         
     def get_divisions(self):
         """
-        Returns set of division names in the league.
+        Returns a dict of division name and division members pairs
 
-        returns: a set of strings
+        returns: a dict
         """
-        return self.divisions
-        
+        divisions = {}
+        for d in self.divisions:
+            divisions[d] = []
+        for t in self:
+            try: divisions[t.get_division()].append(t.get_name())
+            except KeyError:
+                if '<Not Assigned>' in divisions:
+                    divisions['<Not Assigned>'].append(t.get_name())
+                else: divisions['<Not Assigned>'] = [t.get_name(),]
+        return divisions
+
     def shuffle_divisions(self):
         """
         Randomly evenly assigns divisions from self.divisions to teams in
@@ -139,6 +148,56 @@ class League(object):
                     ' is not a division in league')
         except KeyError:
             raise ValueError(team_name + ' is not in League')
+    
+    def generate_schedule(self, weeks):
+        """
+        Creates a regular season schedule of WEEKS number of weeks
+        for the league. Teams are matched once against each team in their
+        division and then once against each team outside their division,
+        if there are weeks reamaining, the process repeats until
+        all weeks are filled. Number of teams in league must be even.
+
+        weeks: an int
+        returns: a list of lists of matchups. (each list of matchups is a week
+        in the season).
+        """
+        schedule = []
+        divisions = self.get_divisions()
+        matchupFreqs = {}
+        for team in self:
+            matchupFreqs[str(team)] = {}
+            for opponent in self:
+                if not opponent == team:
+                    matchupFreqs[str(team)][str(opponent)] = {}
+                    matchupFreqs[str(team)][str(opponent)]['home'] = 0
+                    matchupFreqs[str(team)][str(opponent)]['away'] = 0
+                
+        for w in xrange(weeks):
+            schedule.append(self._generate_week(divisions, matchupFreqs,
+                                                w, weeks))
+
+        return schedule
+
+    def _generate_week(self, divisions, matchupFreqs, weekNum, totalWeeks):
+        """
+        Generates a list of matchups representing a week schedule. Modifies
+        matchupFreqs to reflect returned matchups.
+
+        matchupFreqs: a dict of dicts of dicts. (each team is a key in the top
+        dict, which contains a dict with a key for each possible opponent, 
+        whose value is a dict with two keys: 'home' and 'away'.  The values
+        for 'home' and 'away' are ints representing the frequency of this
+        matchup.
+        e.g. matchupFreqs['Team 1']['Team 2']['home'] = 1, represents one 
+        matchup of Team 1 vs Team 2, where Team1 is the home team. In this case,
+        matchupFreqs['Team 2']['Team 1']['away'] will also equal 1.
+        
+        weekNum: an int
+        totalWeeks: an int
+        returns: a list of Matchups
+        modifies: matchupFreqs
+        """
+        raise NotImplementedError
         
     def __iter__(self):
         """
@@ -157,15 +216,7 @@ class League(object):
         returns: a string
         """
         result = 'League Name: ' + self.name + '\nTeams and Divisions:\n'
-        divisions = {}
-        for d in self.divisions:
-            divisions[d] = []
-        for t in self:
-            try: divisions[t.get_division()].append(t.get_name())
-            except KeyError:
-                if '<Not Assigned>' in divisions:
-                    divisions['<Not Assigned>'].append(t.get_name())
-                else: divisions['<Not Assigned>'] = [t.get_name(),]
+        divisions = self.get_divisions()
         sorted_divs = sorted(divisions.keys(), key=str.lower)
         for d in sorted_divs:
             result = result + 'Division Name: ' + d + '\n'
@@ -240,6 +291,28 @@ class Team(object):
         returns: a string
         """
         return self.name
+
+class Matchup(object):
+    def __init__(self, home, away):
+        """
+        Initialize a Matchup object representing a matchup between fantasy
+        teams with home team, HOME, and away team, AWAY.
+
+        home: a Team object
+        away: a Team object
+        """
+        self.homeTeam = home
+        self.awayTeam = away
+        self.homeScore = None
+        self.awayScore = None
+
+    def __str__(self):
+        """
+        Returns a string representation of a Matchup.
+
+        returns: a string
+        """
+        return str(self.awayTeam) + ' at ' + str(self.homeTeam)
 
 grassmasters = League('Frozen Grassmasters of Lambeau')
 grassmasters.create_team('Training Camp Hookie')

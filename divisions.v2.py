@@ -10,7 +10,7 @@ class League(object):
         """
         self.name = str(name)
         self.teams = {}
-        self.divisions = {}
+        self.divisions = set()
         
     def get_name(self):
         """
@@ -71,30 +71,29 @@ class League(object):
     
     def add_division(self, division_name):
         """
-        Adds an entry to the self.divisions dict with key DIVISION_NAME and
-        sets its value to True (not utilized).
+        Adds an entry to the self.divisions set with DIVISION_NAME
 
         division_name: a string
         """
-        self.divisions[division_name] = True
+        self.divisions.add(division_name)
         
     def remove_division(self, division_name):
         """
-        Deletes entry with key DIVISON_NAME from self.divisions dict.
+        Deletes entry with key DIVISON_NAME from self.divisions set.
 
-        division_name: a string in self.divisions.keys()
+        division_name: a string in self.divisions
         """
         if division_name in self.divisions:
-            del self.divisions[division_name]
+            self.divisions.remove(division_name)
         else: raise ValueError(division_name + ' is not a division in league.')
         
     def get_divisions(self):
         """
-        Returns list of division names in the league.
+        Returns set of division names in the league.
 
-        returns: a list of strings
+        returns: a set of strings
         """
-        return self.divisions.keys()
+        return self.divisions
         
     def shuffle_divisions(self):
         """
@@ -104,7 +103,7 @@ class League(object):
         """
         # map divisions to size (number of teams in division (initial: 0))
         divisions = {}
-        for d in self.divisions.keys():
+        for d in self.divisions:
             divisions[d] = 0  
         # calculate maximum division size
         max_teams = len(self.teams) / len(divisions)
@@ -159,7 +158,7 @@ class League(object):
         """
         result = 'League Name: ' + self.name + '\nTeams and Divisions:\n'
         divisions = {}
-        for d in self.divisions.keys():
+        for d in self.divisions:
             divisions[d] = []
         for t in self:
             try: divisions[t.get_division()].append(t.get_name())

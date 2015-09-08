@@ -89,7 +89,7 @@ class League(object):
         
     def get_divisions(self):
         """
-        Returns a dict of division name and division members pairs
+        Returns a dict of division name and list of division members pairs
 
         returns: a dict
         """
@@ -172,7 +172,7 @@ class League(object):
                     matchupFreqs[str(team)][str(opponent)]['home'] = 0
                     matchupFreqs[str(team)][str(opponent)]['away'] = 0
                 
-        for w in xrange(weeks):
+        for w in xrange(1, weeks+1):
             schedule.append(self._generate_week(divisions, matchupFreqs,
                                                 w, weeks))
 
@@ -197,7 +197,86 @@ class League(object):
         returns: a list of Matchups
         modifies: matchupFreqs
         """
+        maxMatchups = (weekNum // len(self.teams)) + 1
+        divisionSize = len(self.teams) / len(divisions)
+        if 0 < (weekNum % (len(self.teams) - 1)) < divisionSize:
+            return self._get_divisional_matchups(divisions, matchupFreqs,
+                                                 maxMatchups)
+        else:
+            return self._get_interdivisional_matchups(divisions, matchupFreqs, 
+                                                      maxMatchups)
+        
+    def _get_divisional_matchups(self, divisions, matchupFreqs, maxMatchups):
+        matchupList = []
+        for d in divisions.keys():
+            availableTeams = divisions[d]
+            for team in availableTeams:
+                availableTeams.remove(team)
+                validMatchups = self._get_valid_matchups(team, availableTeams,
+                                                         matchupFreqs, 
+                                                         maxMatchups)
+                toAdd = random.choice(validMatchups)
+                if toAdd[1] == 'home':
+                    matchupList.append(Matchup(team, toAdd[0]))
+                    self.update_matchup_freqs(team, toAdd[0])
+                else:
+                    matchupList.append(Matchup(toAdd[0], team))
+                    self.update_matchup_freqs(toAdd[0], team)
+                availableTeams.remove(toAdd[0])
+
+    def _get_interdivisional_matchups(self, divisions, matchupFreqs, 
+                                      maxMatchups):
         raise NotImplementedError
+
+
+
+    def _get_valid_matchups(self, team, teamList, matchupFreqs, maxMatchups):
+        """
+        Returns a list of tuples consisting of an opponent and 'home' or 'away'
+        representing all possible matchups between team and teamList that could
+        be scheduled.
+
+        team: a Team object
+        teamList: a list of Team objects
+        matchupFreqs: a dict (see _generate_week for explaination
+        maxMatchups: an int
+        returns: a list of tuples (Team, str)
+        """
+        result = []
+        for opponent in teamList:
+            test = self._check_matchup(team, opponent, matchupFreqs, maxMatchups)
+            if test != False:
+                result.append((opponent, test))
+        return result
+
+    def _check_matchup(self, team, opponent, matchupFreqs, maxMatchups):
+        """
+        Checks matchupFreqs dictionary to see if a matchup is suitable to
+        schedule based on maxMatchups.  If team and opponent have played
+        each other more or equal times than MAXMATCHUPS, returns False,
+        otherwise returns 'home' or 'away' based on which matchup has occured
+        less. Tie goes to 'home'.
+
+        team: a Team object
+        opponent: a Team object
+        matchupFreqs: a dict (see _generate_week for explaination)
+        maxMatchups: an int
+        returns: one of: False or str ('home' or 'away')
+        """
+        homeMatchups = matchupFreqs[str(team)][str(opponent)]['home']
+        awayMatchups = matchupFreqs[str(team)][str(opponent)]['away']
+        if homeMatchups + awayMatchups >= maxMatchups:
+            return False
+        elif homeMatchups <= awayMatchups:
+            return 'home'
+        else:
+            return 'away'
+
+    def update_matchup_freqs(self, home, away, matchupFreqs):
+        matchupFreqs[str(home)][str(away)]['home'] += 1
+        matchupFreqs[str(away)][str(home)]['away'] += 1
+
+
         
     def __iter__(self):
         """

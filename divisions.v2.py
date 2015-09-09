@@ -163,6 +163,7 @@ class League(object):
         """
         schedule = []
         divisions = self.get_divisions()
+        # initialize matchupFreqs dict
         matchupFreqs = {}
         for team in self:
             matchupFreqs[str(team)] = {}
@@ -203,32 +204,74 @@ class League(object):
             return self._get_divisional_matchups(divisions, matchupFreqs,
                                                  maxMatchups)
         else:
-            return self._get_interdivisional_matchups(divisions, matchupFreqs, 
+            return self._get_interdivisional_matchups_v2(divisions, matchupFreqs, 
                                                       maxMatchups)
         
     def _get_divisional_matchups(self, divisions, matchupFreqs, maxMatchups):
         matchupList = []
         for d in divisions.keys():
-            availableTeams = divisions[d]
+            availableTeams = divisions[d][:]
             for team in availableTeams:
                 availableTeams.remove(team)
                 validMatchups = self._get_valid_matchups(team, availableTeams,
                                                          matchupFreqs, 
                                                          maxMatchups)
                 toAdd = random.choice(validMatchups)
-                if toAdd[1] == 'home':
-                    matchupList.append(Matchup(team, toAdd[0]))
-                    self.update_matchup_freqs(team, toAdd[0])
-                else:
-                    matchupList.append(Matchup(toAdd[0], team))
-                    self.update_matchup_freqs(toAdd[0], team)
+                self._add_matchup(team, toAdd, matchupList, matchupFreqs)
                 availableTeams.remove(toAdd[0])
+        return matchupList
 
-    def _get_interdivisional_matchups(self, divisions, matchupFreqs, 
-                                      maxMatchups):
-        raise NotImplementedError
+##    def _get_interdivisional_matchups(self, divisions, matchupFreqs, 
+##                                      maxMatchups):
+##        matchupList = []
+##        availableTeams = self.teams.keys()
+##        for team in availableTeams:
+##            print team
+##            availableTeams.remove(team)
+##            tempAvail = availableTeams[:]
+##            for divTeam in divisions[self.get_team(team).get_division()]:
+##                try: tempAvail.remove(divTeam)
+##                except ValueError: pass
+##            print str(len(tempAvail)) + ' to choose from'
+##            validMatchups = self._get_valid_matchups(team, tempAvail,
+##                                                     matchupFreqs, maxMatchups)
+##            print str(len(validMatchups)) + ' are valid.'
+##            toAdd = random.choice(validMatchups)
+##            print toAdd
+##            self._add_matchup(team, toAdd, matchupList, matchupFreqs)
+##            availableTeams.remove(toAdd[0])
+##            print str(len(availableTeams)) + ' available teams.'
+##        return matchupList
+##
+    def _get_interdivisional_matchups_v2(self, divisions, matchupFreqs, 
+                                          maxMatchups):
+        matchupList = []
+        usedDict = {}
+        for team in self.teams.keys():
+            usedDict[team] = False
+        for team in self:
+            if usedDict[str(team)] == True:
+                continue
+            usedDict[str(team)] = True
+            tempAvail = []
+            for tempTeam in self:
+                if usedDict[str(tempTeam)] == False and \
+                        tempTeam not in divisions[team.get_division()]:
+                    tempAvail.append(tempTeam)
+            validMatchups = self._get_valid_matchups(team, tempAvail,
+                                                     matchupFreqs, maxMatchups)
+            toAdd = random.choice(validMatchups)
+            self._add_matchup(team, toAdd, matchupList, matchupFreqs)
+            usedDict[str(toAdd[0])] = True
+        return matchupList
 
-
+    def _add_matchup(self, team, toAdd, matchupList, matchupFreqs):
+        if toAdd[1] == 'home':
+            matchupList.append(Matchup(team, toAdd[0]))
+            self._update_matchup_freqs(team, toAdd[0], matchupFreqs)
+        else:
+            matchupList.append(Matchup(toAdd[0], team))
+            self._update_matchup_freqs(toAdd[0], team, matchupFreqs)
 
     def _get_valid_matchups(self, team, teamList, matchupFreqs, maxMatchups):
         """
@@ -272,7 +315,7 @@ class League(object):
         else:
             return 'away'
 
-    def update_matchup_freqs(self, home, away, matchupFreqs):
+    def _update_matchup_freqs(self, home, away, matchupFreqs):
         matchupFreqs[str(home)][str(away)]['home'] += 1
         matchupFreqs[str(away)][str(home)]['away'] += 1
 
@@ -393,6 +436,12 @@ class Matchup(object):
         """
         return str(self.awayTeam) + ' at ' + str(self.homeTeam)
 
+def print_schedule(schedule):
+    for week in range(1, len(schedule)+1):
+        print 'Week ' + str(week)
+        for game in schedule[week-1]:
+            print game
+
 grassmasters = League('Frozen Grassmasters of Lambeau')
 grassmasters.create_team('Training Camp Hookie')
 grassmasters.create_team('T-bone Chicken')
@@ -416,4 +465,4 @@ grassmasters.add_division('Sausage')
 grassmasters.shuffle_divisions()
 
 print grassmasters
-
+print_schedule(grassmasters.generate_schedule(14))
